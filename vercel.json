@@ -6,7 +6,7 @@
   "crons": [
     {
       "path": "/api/ai-engine/run",
-      "schedule": "0 */6 * * *"
+      "schedule": "0 8 * * *"
     }
   ]
 }
