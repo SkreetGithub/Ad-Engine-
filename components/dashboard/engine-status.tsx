@@ -1,22 +1,11 @@
 "use client"
 
-import { Activity, Wifi, Shield, Cpu } from "lucide-react"
+import { Activity, Wifi, Shield, Heart } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-
-interface StatusItem {
-  label: string
-  status: "online" | "processing" | "idle"
-  detail: string
-  icon: React.ElementType
-}
-
-const statusItems: StatusItem[] = [
-  { label: "Ad Engine", status: "online", detail: "Optimizing 4 campaigns", icon: Cpu },
-  { label: "Content Pipeline", status: "processing", detail: "1 asset rendering", icon: Activity },
-  { label: "API Connection", status: "online", detail: "All APIs connected", icon: Wifi },
-  { label: "Budget Guard", status: "online", detail: "Under daily limit", icon: Shield },
-]
+import { AddyAvatar } from "@/components/addy/addy-avatar"
+import { useAddy } from "@/components/providers/addy-provider"
+import { formatProfitRatio } from "@/lib/addy"
 
 const statusColors = {
   online: "bg-primary",
@@ -31,19 +20,57 @@ const statusTextColors = {
 }
 
 export function EngineStatus() {
+  const { addy, activeCompany, store } = useAddy()
+  const companyCount = store?.companies.length ?? 0
+  const strategyCount = activeCompany?.strategyIds.length ?? 0
+
+  const statusItems = [
+    {
+      label: `${addy.name} — ad manager`,
+      status: "online" as const,
+      detail: activeCompany
+        ? `Managing ${activeCompany.name} (${strategyCount} strategies)`
+        : "Add a company to get started",
+      icon: Activity,
+    },
+    {
+      label: "Profit target",
+      status: activeCompany && activeCompany.currentProfitRatio >= activeCompany.targetProfitRatio ? "online" : "processing",
+      detail: activeCompany
+        ? `${formatProfitRatio(activeCompany.currentProfitRatio)} / ${formatProfitRatio(activeCompany.targetProfitRatio)} goal`
+        : "—",
+      icon: Shield,
+    },
+    {
+      label: "Customer experience",
+      status: activeCompany && activeCompany.cxScore >= 75 ? "online" : "processing",
+      detail: activeCompany ? `${activeCompany.cxScore}% toward CX goal` : "—",
+      icon: Heart,
+    },
+    {
+      label: "Meta API",
+      status: "online" as const,
+      detail: `${companyCount} brand${companyCount === 1 ? "" : "s"} in portfolio`,
+      icon: Wifi,
+    },
+  ]
+
   return (
     <Card className="border-border bg-card">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-semibold uppercase tracking-wider text-foreground">
-            Engine Status
-          </CardTitle>
+          <div className="flex items-center gap-2">
+            <AddyAvatar size="sm" pulse />
+            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-foreground">
+              {addy.name}&apos;s status
+            </CardTitle>
+          </div>
           <div className="flex items-center gap-1.5">
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
             </span>
-            <span className="text-[10px] font-semibold uppercase text-primary">System Online</span>
+            <span className="text-[10px] font-semibold uppercase text-primary">Online</span>
           </div>
         </div>
       </CardHeader>

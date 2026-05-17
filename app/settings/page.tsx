@@ -17,6 +17,7 @@ import {
   Save,
   AlertCircle,
 } from "lucide-react"
+import { AddyAiSettings } from "@/components/addy-workspace/addy-ai-settings"
 
 const MAX_TOTAL_BUDGET_KEY = "adengine_max_total_budget"
 const AUTO_START_NEW_KEY = "adengine_auto_start_new"
@@ -63,9 +64,10 @@ export default function SettingsPage() {
   return (
     <DashboardShell
       title="Settings"
-      subtitle="Configure your autonomous ad engine"
+      subtitle="Configure Addy, budget guardrails, and defaults per company"
     >
       <div className="mx-auto max-w-2xl space-y-6">
+        <AddyAiSettings />
         {/* Budget Guardrails */}
         <Card className="border-border bg-card">
           <CardHeader className="pb-3">

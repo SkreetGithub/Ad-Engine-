@@ -9,19 +9,23 @@ import {
   Settings,
   Key,
   TrendingUp,
-  Zap,
-  BarChart3,
   ChevronLeft,
   ChevronRight,
+  Building2,
+  BarChart3,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { AddyAvatar } from "@/components/addy/addy-avatar"
+import { useAddy } from "@/components/providers/addy-provider"
+import { ADDY } from "@/lib/addy"
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/companies", label: "Companies", icon: Building2 },
   { href: "/campaigns", label: "Campaigns", icon: Megaphone },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/optimizer", label: "AI Optimizer", icon: Brain },
+  { href: "/optimizer", label: "Addy's Optimizer", icon: Brain },
   { href: "/strategies", label: "Ad Strategies", icon: TrendingUp },
   { href: "/api-keys", label: "API Keys", icon: Key },
   { href: "/settings", label: "Settings", icon: Settings },
@@ -34,6 +38,7 @@ interface SidebarNavProps {
 
 export function SidebarNav({ collapsed, onToggle }: SidebarNavProps) {
   const pathname = usePathname()
+  const { activeCompany } = useAddy()
 
   return (
     <aside
@@ -43,20 +48,22 @@ export function SidebarNav({ collapsed, onToggle }: SidebarNavProps) {
       )}
     >
       <div className="flex h-16 items-center gap-2 border-b border-border px-4">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary">
-          <Zap className="h-4 w-4 text-primary-foreground" />
-        </div>
+        <AddyAvatar size="sm" pulse />
         {!collapsed && (
           <div className="flex flex-col">
-            <span className="text-sm font-bold text-foreground">AdEngine</span>
-            <span className="text-[10px] font-medium uppercase tracking-wider text-primary">PRO</span>
+            <span className="text-sm font-bold text-foreground">{ADDY.name}</span>
+            <span className="text-[10px] font-medium uppercase tracking-wider text-primary">
+              {ADDY.role}
+            </span>
           </div>
         )}
       </div>
 
       <nav className="flex-1 space-y-1 px-2 py-4">
         {navItems.map((item) => {
-          const isActive = pathname === item.href
+          const isActive =
+            pathname === item.href ||
+            (item.href === "/companies" && pathname.startsWith("/companies/"))
           const Icon = item.icon
           return (
             <Link
@@ -89,13 +96,15 @@ export function SidebarNav({ collapsed, onToggle }: SidebarNavProps) {
 
       <div className="border-t border-border px-4 py-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-bold text-foreground">
-            U
-          </div>
+          <AddyAvatar size="sm" />
           {!collapsed && (
-            <div className="flex flex-col">
-              <span className="text-xs font-medium text-foreground">My Business</span>
-              <span className="text-[10px] text-muted-foreground">Engine Active</span>
+            <div className="flex flex-col min-w-0">
+              <span className="truncate text-xs font-medium text-foreground">
+                {activeCompany?.name ?? "No company"}
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                {ADDY.name} is managing ads
+              </span>
             </div>
           )}
         </div>

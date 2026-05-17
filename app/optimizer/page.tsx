@@ -9,8 +9,8 @@ import { PerformanceHeatmap } from "@/components/optimizer/performance-heatmap"
 export default function OptimizerPage() {
   return (
     <DashboardShell
-      title="AI Optimizer"
-      subtitle="AI-powered analysis to maximize every dollar spent"
+      title="Addy's Optimizer"
+      subtitle="Addy analyzes spend, creative, and timing to hit your profit and CX goals"
     >
       <div className="space-y-6">
         <OptimizerInsights />

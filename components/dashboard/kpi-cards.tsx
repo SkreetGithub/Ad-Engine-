@@ -1,57 +1,66 @@
 "use client"
 
-import { DollarSign, TrendingUp, Eye, ShoppingCart, ArrowUpRight, ArrowDownRight } from "lucide-react"
+import { DollarSign, TrendingUp, Eye, Heart, ArrowUpRight, ArrowDownRight } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-
-interface KpiData {
-  label: string
-  value: string
-  change: number
-  changeLabel: string
-  icon: React.ElementType
-  highlight?: boolean
-}
-
-const kpiData: KpiData[] = [
-  {
-    label: "Total Revenue",
-    value: "$2,847",
-    change: 23.5,
-    changeLabel: "vs last week",
-    icon: DollarSign,
-    highlight: true,
-  },
-  {
-    label: "Ad Spend",
-    value: "$42.50",
-    change: -12.3,
-    changeLabel: "optimized",
-    icon: TrendingUp,
-  },
-  {
-    label: "Impressions",
-    value: "48.2K",
-    change: 18.7,
-    changeLabel: "vs last week",
-    icon: Eye,
-  },
-  {
-    label: "Orders",
-    value: "34",
-    change: 31.2,
-    changeLabel: "vs last week",
-    icon: ShoppingCart,
-    highlight: true,
-  },
-]
+import { useAddy } from "@/components/providers/addy-provider"
+import { formatProfitRatio, profitRatioProgress } from "@/lib/addy"
 
 export function KpiCards() {
+  const { activeCompany } = useAddy()
+
+  const profitPct = activeCompany
+    ? profitRatioProgress(activeCompany.currentProfitRatio, activeCompany.targetProfitRatio)
+    : 0
+
+  const kpiData = activeCompany
+    ? [
+        {
+          label: "Profit ratio",
+          value: formatProfitRatio(activeCompany.currentProfitRatio),
+          change: profitPct - 100,
+          changeLabel: `goal ${formatProfitRatio(activeCompany.targetProfitRatio)}`,
+          icon: TrendingUp,
+          highlight: true,
+        },
+        {
+          label: "Customer experience",
+          value: `${activeCompany.cxScore}%`,
+          change: activeCompany.cxScore - 75,
+          changeLabel: "vs 75% benchmark",
+          icon: Heart,
+          highlight: activeCompany.cxScore >= 75,
+        },
+        {
+          label: "Active strategies",
+          value: String(activeCompany.strategyIds.length),
+          change: activeCompany.strategyIds.length,
+          changeLabel: "assigned to brand",
+          icon: Eye,
+        },
+        {
+          label: "Brand status",
+          value: activeCompany.status === "active" ? "Live" : "Paused",
+          change: activeCompany.status === "active" ? 1 : -1,
+          changeLabel: activeCompany.industry,
+          icon: DollarSign,
+        },
+      ]
+    : [
+        {
+          label: "Companies",
+          value: "—",
+          change: 0,
+          changeLabel: "add a company",
+          icon: DollarSign,
+        },
+      ]
+
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {kpiData.map((kpi) => {
         const Icon = kpi.icon
-        const isPositive = kpi.change > 0
+        const isPositive = kpi.change >= 0
         return (
           <Card
             key={kpi.label}
@@ -68,11 +77,15 @@ export function KpiCards() {
                   </span>
                   <span className="font-mono text-2xl font-bold text-foreground">{kpi.value}</span>
                 </div>
-                <div className={cn(
-                  "flex h-10 w-10 items-center justify-center rounded-lg",
-                  kpi.highlight ? "bg-primary/10" : "bg-secondary"
-                )}>
-                  <Icon className={cn("h-5 w-5", kpi.highlight ? "text-primary" : "text-muted-foreground")} />
+                <div
+                  className={cn(
+                    "flex h-10 w-10 items-center justify-center rounded-lg",
+                    kpi.highlight ? "bg-primary/10" : "bg-secondary"
+                  )}
+                >
+                  <Icon
+                    className={cn("h-5 w-5", kpi.highlight ? "text-primary" : "text-muted-foreground")}
+                  />
                 </div>
               </div>
               <div className="mt-3 flex items-center gap-1.5">
@@ -81,8 +94,16 @@ export function KpiCards() {
                 ) : (
                   <ArrowDownRight className="h-3.5 w-3.5 text-accent" />
                 )}
-                <span className={cn("font-mono text-xs font-semibold", isPositive ? "text-primary" : "text-accent")}>
-                  {isPositive ? "+" : ""}{kpi.change}%
+                <span
+                  className={cn(
+                    "font-mono text-xs font-semibold",
+                    isPositive ? "text-primary" : "text-accent"
+                  )}
+                >
+                  {isPositive && kpi.change > 0 ? "+" : ""}
+                  {typeof kpi.change === "number" && kpi.label !== "Brand status"
+                    ? `${Math.round(kpi.change)}%`
+                    : ""}
                 </span>
                 <span className="text-xs text-muted-foreground">{kpi.changeLabel}</span>
               </div>

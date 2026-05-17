@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { SidebarNav } from "./sidebar-nav"
+import { CompanySelector } from "@/components/companies/company-selector"
 import { cn } from "@/lib/utils"
 
 interface DashboardShellProps {
@@ -28,7 +29,10 @@ export function DashboardShell({ children, title, subtitle, actions }: Dashboard
             <h1 className="text-lg font-bold text-foreground">{title}</h1>
             {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
           </div>
-          {actions && <div className="flex items-center gap-2">{actions}</div>}
+          <div className="flex items-center gap-3">
+            <CompanySelector />
+            {actions}
+          </div>
         </header>
         <div className="p-6">{children}</div>
       </main>
