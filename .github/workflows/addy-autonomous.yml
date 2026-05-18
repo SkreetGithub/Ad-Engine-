@@ -1,0 +1,54 @@
+name: Addy Autonomous Ad Optimizer
+
+on:
+  schedule:
+    # Every 6 hours (UTC)
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+jobs:
+  optimize:
+    name: Optimize ads and improve profit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Run Addy optimization
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ vars.VERCEL_APP_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET is not set in GitHub Actions secrets"
+            exit 1
+          fi
+          BASE_URL="${APP_URL:-https://ad-engine-khaki.vercel.app}"
+          echo "Calling $BASE_URL/api/cron/optimize-ads"
+          HTTP_CODE=$(curl -sS -o /tmp/addy-cron.json -w "%{http_code}" \
+            -X GET "$BASE_URL/api/cron/optimize-ads" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "X-GitHub-Runner: true")
+          cat /tmp/addy-cron.json
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "Optimization failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
+          echo "Optimization succeeded"
+
+  sync-meta:
+    name: Sync Facebook metrics
+    runs-on: ubuntu-latest
+    needs: optimize
+    if: success()
+
+    steps:
+      - name: Sync Meta ad performance
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ vars.VERCEL_APP_URL }}
+        run: |
+          BASE_URL="${APP_URL:-https://ad-engine-khaki.vercel.app}"
+          curl -sS -f \
+            -X GET "$BASE_URL/api/cron/sync-facebook-metrics" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "X-GitHub-Runner: true"

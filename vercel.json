@@ -5,7 +5,7 @@
   "installCommand": "npm install --legacy-peer-deps",
   "crons": [
     {
-      "path": "/api/addy-engine/cron",
+      "path": "/api/cron/optimize-ads",
       "schedule": "0 8 * * *"
     }
   ]

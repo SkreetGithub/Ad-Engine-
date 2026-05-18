@@ -51,8 +51,18 @@ export function assertBodySize(contentLength: string | null, max = MAX_JSON_BODY
 
 export function verifyCronAuth(request: Request): boolean {
   const secret = process.env.CRON_SECRET
-  if (!secret) return process.env.NODE_ENV !== "production"
-  return request.headers.get("authorization") === `Bearer ${secret}`
+  if (!secret) {
+    return process.env.NODE_ENV !== "production"
+  }
+  const auth = request.headers.get("authorization")
+  return auth === `Bearer ${secret}`
+}
+
+export function getCronSource(request: Request): string {
+  if (request.headers.get("x-github-runner") === "true") return "github_actions"
+  if (request.headers.get("user-agent")?.includes("Supabase")) return "pg_cron"
+  if (request.headers.get("x-vercel-cron")) return "vercel_cron"
+  return "manual"
 }
 
 /** Optional: set ADDY_API_SECRET on Vercel and send x-addy-secret from trusted clients */
