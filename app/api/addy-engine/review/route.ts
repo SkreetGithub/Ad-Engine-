@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       newAds: items.filter((i) => i.action === "new_ad").length,
     }
 
-    const { report, recommendations, lessonsLearned } = buildPlainEnglishDailyReport({
+    const { report, recommendations, lessonsLearned } = await buildPlainEnglishDailyReport({
       company,
       runningAds: running,
       library,

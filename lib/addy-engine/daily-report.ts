@@ -3,6 +3,7 @@ import type { LibraryAd, RunningAd } from "@/lib/addy-engine/types"
 import type { MetaCampaignInsight, MetaSyncResult } from "@/lib/addy-engine/meta-sync"
 import { cxGoalLabel } from "@/lib/addy"
 import { ADDY_MISSION } from "@/lib/addy"
+import { loadCumulativeLessons } from "@/lib/addy-persistence"
 
 export interface DailyReportInput {
   company: Company
@@ -12,11 +13,11 @@ export interface DailyReportInput {
   queueSummary?: { cuts: number; keeps: number; pauses: number; newAds: number }
 }
 
-export function buildPlainEnglishDailyReport(input: DailyReportInput): {
+export async function buildPlainEnglishDailyReport(input: DailyReportInput): Promise<{
   report: string
   recommendations: string[]
   lessonsLearned: string[]
-} {
+}> {
   const { company, runningAds, library, meta, queueSummary } = input
   const active = runningAds.filter((a) => a.status === "active")
   const spend = meta?.ok ? meta.totalSpend : company.currentAdSpend
@@ -32,6 +33,13 @@ export function buildPlainEnglishDailyReport(input: DailyReportInput): {
   const gap = target - roas
   const recommendations: string[] = []
   const lessonsLearned: string[] = []
+
+  const pastLessons = await loadCumulativeLessons(company.id, 15)
+  if (pastLessons.length) {
+    lessonsLearned.push(
+      `Addy remembers from past reviews: ${pastLessons.slice(0, 5).join(" · ")}`
+    )
+  }
 
   const losers = active.filter((a) => a.profitRatio < company.autoCutThreshold)
   const winners = active.filter((a) => a.profitRatio >= target)
@@ -132,5 +140,14 @@ ${company.adStrategyPlan ? company.adStrategyPlan.split("\n").map((l) => `• ${
 ${recommendations.map((r, i) => `${i + 1}. ${r}`).join("\n")}
 `
 
-  return { report, recommendations, lessonsLearned }
+  const selfImproveBlock =
+    pastLessons.length > 0
+      ? `\n### What Addy has learned about ${company.name}\n${pastLessons.slice(0, 8).map((l) => `• ${l}`).join("\n")}\n`
+      : ""
+
+  return {
+    report: report + selfImproveBlock,
+    recommendations,
+    lessonsLearned,
+  }
 }

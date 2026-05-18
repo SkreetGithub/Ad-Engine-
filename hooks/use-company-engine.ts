@@ -15,8 +15,11 @@ export function useCompanyEngine(companyId: string) {
     setLoading(true)
     try {
       const res = await fetch(`/api/addy-engine?companyId=${companyId}`, { cache: "no-store" })
-      if (!res.ok) throw new Error("Failed to load")
       const data = await res.json()
+      if (!res.ok) {
+        const hint = data.hint ? ` ${data.hint}` : ""
+        throw new Error((data.error || "Failed to load") + hint)
+      }
       setCompany(data.company)
       setView(data.view)
       setError(null)

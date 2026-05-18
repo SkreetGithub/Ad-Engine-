@@ -1,6 +1,12 @@
 import { readFile, writeFile, mkdir } from "fs/promises"
 import { join } from "path"
 import { defaultAddySettings } from "@/lib/addy-ai/config"
+import {
+  loadEngineStore,
+  saveEngineStore,
+  loadReviewCycles,
+  persistReviewCycle,
+} from "@/lib/addy-persistence"
 import type {
   AddyEngineStore,
   AddySettings,
@@ -149,25 +155,11 @@ function seedSampleAds(companyId: string): { running: RunningAd[]; library: Libr
 }
 
 export async function readEngine(): Promise<AddyEngineStore> {
-  try {
-    const raw = await readFile(ENGINE_PATH, "utf-8")
-    const data = JSON.parse(raw) as AddyEngineStore
-    if (!data.settings) data.settings = defaultAddySettings()
-    data.runningAds = data.runningAds ?? []
-    data.libraryAds = data.libraryAds ?? []
-    data.queue = data.queue ?? []
-    data.chats = data.chats ?? {}
-    data.assets = data.assets ?? []
-    data.learningHistory = data.learningHistory ?? []
-    return data
-  } catch {
-    return emptyEngine()
-  }
+  return loadEngineStore()
 }
 
 export async function writeEngine(store: AddyEngineStore): Promise<void> {
-  await mkdir(DATA_DIR, { recursive: true })
-  await writeFile(ENGINE_PATH, JSON.stringify(store, null, 2), "utf-8")
+  await saveEngineStore(store)
 }
 
 export async function ensureEngineSeeded(): Promise<AddyEngineStore> {
@@ -212,9 +204,7 @@ export async function getCompanyView(companyId: string): Promise<CompanyEngineVi
   const company = await getCompany(companyId)
   if (!company) return null
   const engine = await ensureEngineSeeded()
-  const history = (engine.learningHistory ?? [])
-    .filter((h) => h.companyId === companyId)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  const history = await loadReviewCycles(companyId, 30)
 
   return {
     companyId,
@@ -236,6 +226,7 @@ export async function appendLearningHistory(record: ReviewCycleRecord): Promise<
   if (engine.learningHistory.length > 200) {
     engine.learningHistory = engine.learningHistory.slice(-200)
   }
+  await persistReviewCycle(record)
   await writeEngine(engine)
 }
 
@@ -327,12 +318,23 @@ export async function saveBrandingFile(
   mimeType: string,
   buffer: Buffer
 ): Promise<BrandingAsset> {
-  await mkdir(join(BRANDING_DIR, companyId), { recursive: true })
   const id = newId("asset")
   const ext = mimeType.split("/")[1]?.split("+")[0] || "bin"
-  const storagePath = join("branding", companyId, `${id}.${ext}`)
-  const fullPath = join(DATA_DIR, storagePath)
-  await writeFile(fullPath, buffer)
+  let storagePath = join("branding", companyId, `${id}.${ext}`)
+
+  try {
+    await mkdir(join(BRANDING_DIR, companyId), { recursive: true })
+    const fullPath = join(DATA_DIR, storagePath)
+    await writeFile(fullPath, buffer)
+  } catch {
+    const maxInline = 2 * 1024 * 1024
+    if (buffer.length > maxInline) {
+      throw new Error(
+        "Upload too large for serverless storage. Use a file under 2MB or connect Supabase for persistence."
+      )
+    }
+    storagePath = `data:${mimeType};base64,${buffer.toString("base64")}`
+  }
 
   let type: BrandingAsset["type"] = "image"
   if (mimeType.startsWith("video/")) type = "video"

@@ -1,6 +1,6 @@
 "use client"
 
-import { FileText, RefreshCw } from "lucide-react"
+import { FileText, RefreshCw, Maximize2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ADDY } from "@/lib/addy"
@@ -57,12 +57,14 @@ export function DailyReportPanel({
   report,
   onSyncMeta,
   onRunReview,
+  onOpenFeedback,
   syncing,
   reviewing,
 }: {
   report: ReviewCycleRecord | null | undefined
   onSyncMeta: () => void
   onRunReview: () => void
+  onOpenFeedback?: () => void
   syncing: boolean
   reviewing: boolean
 }) {
@@ -86,6 +88,12 @@ export function DailyReportPanel({
           <Button size="sm" className="text-xs" onClick={onRunReview} disabled={reviewing}>
             {reviewing ? "Reviewing…" : "Run daily review"}
           </Button>
+          {report && onOpenFeedback && (
+            <Button size="sm" variant="secondary" className="text-xs" onClick={onOpenFeedback}>
+              <Maximize2 className="mr-1 h-3 w-3" />
+              Full feedback
+            </Button>
+          )}
         </div>
       </CardHeader>
       <CardContent className="max-h-[420px] overflow-y-auto">

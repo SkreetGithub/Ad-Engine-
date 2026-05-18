@@ -44,6 +44,7 @@ import { openAiBudgetRemaining } from "@/lib/addy-ai/config"
 import { cn } from "@/lib/utils"
 import type { ReviewCycleRecord, ReviewQueueItem } from "@/lib/addy-engine/types"
 import { DailyReportPanel } from "@/components/addy-workspace/daily-report-panel"
+import { AddyFeedbackWindow } from "@/components/addy-workspace/addy-feedback-window"
 import { LearningHistoryPanel } from "@/components/addy-workspace/learning-history-panel"
 import { AddLibraryForm } from "@/components/addy-workspace/add-library-form"
 import { ADDY_MISSION } from "@/lib/addy"
@@ -59,6 +60,7 @@ export function CompanyWorkspace({ companyId }: { companyId: string }) {
   const [strategyDraft, setStrategyDraft] = useState("")
   const [syncLoading, setSyncLoading] = useState(false)
   const [latestReport, setLatestReport] = useState<ReviewCycleRecord | null>(null)
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
 
   if (loading && !company) {
     return (
@@ -73,8 +75,14 @@ export function CompanyWorkspace({ companyId }: { companyId: string }) {
 
   if (error || !company || !view) {
     return (
-      <DashboardShell title="Error" subtitle="">
+      <DashboardShell title="Error" subtitle={ADDY.name}>
         <p className="text-destructive">{error || "Company not found"}</p>
+        <p className="mt-2 max-w-lg text-sm text-muted-foreground">
+          On production, Addy needs Supabase: set{" "}
+          <code className="text-xs">SUPABASE_URL</code> and{" "}
+          <code className="text-xs">SUPABASE_ANON_KEY</code> in Vercel, then run{" "}
+          <code className="text-xs">supabase/addy-schema.sql</code> in your Supabase SQL editor.
+        </p>
         <Button asChild className="mt-4">
           <Link href="/companies">Back to companies</Link>
         </Button>
@@ -188,6 +196,12 @@ export function CompanyWorkspace({ companyId }: { companyId: string }) {
   }
 
   return (
+    <>
+    <AddyFeedbackWindow
+      report={displayReport}
+      open={feedbackOpen}
+      onClose={() => setFeedbackOpen(false)}
+    />
     <DashboardShell
       title={company.name}
       subtitle={`${ADDY.name} · Ad Strategy Manager`}
@@ -251,6 +265,7 @@ export function CompanyWorkspace({ companyId }: { companyId: string }) {
             report={displayReport}
             onSyncMeta={syncMeta}
             onRunReview={runReview}
+            onOpenFeedback={() => setFeedbackOpen(true)}
             syncing={syncLoading}
             reviewing={reviewLoading}
           />
@@ -542,6 +557,7 @@ export function CompanyWorkspace({ companyId }: { companyId: string }) {
         </TabsContent>
       </Tabs>
     </DashboardShell>
+    </>
   )
 }
 
