@@ -14,14 +14,15 @@ import {
 import { logCronRun } from "@/lib/addy-persistence"
 import type { ReviewCycleRecord } from "@/lib/addy-engine/types"
 import { hasSupabase } from "@/lib/supabase"
+import { fetchCompetitiveIntel } from "@/lib/addy-intelligence/competitive"
+import { evaluateRunningAbTests } from "@/lib/addy-intelligence/ab-tests"
+import { verifyCronAuth } from "@/lib/security/api-guard"
 
 export const dynamic = "force-dynamic"
 
 /** Daily cron: review every company, sync Meta when possible, store reports in Supabase */
 export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization")
-  const cronSecret = process.env.CRON_SECRET
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!verifyCronAuth(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
@@ -79,6 +80,9 @@ export async function GET(request: Request) {
           debugLog,
         }
         await appendLearningHistory(cycle)
+
+        await fetchCompetitiveIntel(company)
+        await evaluateRunningAbTests(company.id)
 
         if (company.autonomousMode) {
           let eng = await readEngine()

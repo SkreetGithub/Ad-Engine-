@@ -26,6 +26,8 @@ export function BrandChatPanel({
   const [chatLoading, setChatLoading] = useState(false)
   const [pendingFile, setPendingFile] = useState<File | null>(null)
   const [pendingAction, setPendingAction] = useState<ChatPendingAction | null>(null)
+  const [autoBoost, setAutoBoost] = useState(true)
+  const [boostBudget, setBoostBudget] = useState(5)
   const [budgetGate, setBudgetGate] = useState<{
     canApproveIncrement?: boolean
     atHardCap?: boolean
@@ -56,17 +58,27 @@ export function BrandChatPanel({
         fd.append("message", text || `Profit analysis for ${pendingFile.name}`)
         fd.append("file", pendingFile)
         if (opts?.approveBudget) fd.append("approveBudget", "true")
-        res = await fetch("/api/addy-engine/chat", { method: "POST", body: fd })
+        fd.append("autoBoost", String(autoBoost))
+        fd.append("boostBudget", String(boostBudget))
+        res = await fetch("/api/addy-engine/smart-chat", { method: "POST", body: fd })
         setPendingFile(null)
       } else {
-        res = await fetch("/api/addy-engine/chat", {
+        res = await fetch("/api/addy-engine/smart-chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             companyId: company.id,
             message: text || "Confirm action",
             approveBudget: opts?.approveBudget,
-            confirmAction: opts?.confirmAction,
+            confirmAction: opts?.confirmAction
+              ? {
+                  ...opts.confirmAction,
+                  autoBoost: opts.confirmAction.autoBoost ?? autoBoost,
+                  boostBudget: opts.confirmAction.boostBudget ?? boostBudget,
+                }
+              : undefined,
+            autoBoost,
+            boostBudget,
           }),
         })
       }
@@ -157,10 +169,34 @@ export function BrandChatPanel({
             <p className="mb-2 text-[10px] uppercase text-muted-foreground">
               Platform: {pendingAction.type.replace("_", " ")}
             </p>
+            <label className="mb-2 flex items-center gap-2 text-xs">
+              <input
+                type="checkbox"
+                checked={autoBoost}
+                onChange={(e) => setAutoBoost(e.target.checked)}
+              />
+              Auto-boost after post (${boostBudget})
+              <Input
+                type="number"
+                className="ml-2 h-7 w-16 text-xs"
+                min={1}
+                max={50}
+                value={boostBudget}
+                onChange={(e) => setBoostBudget(Number(e.target.value) || 5)}
+              />
+            </label>
             <div className="flex gap-2">
               <Button
                 size="sm"
-                onClick={() => sendChat({ confirmAction: pendingAction })}
+                onClick={() =>
+                  sendChat({
+                    confirmAction: {
+                      ...pendingAction,
+                      autoBoost,
+                      boostBudget,
+                    },
+                  })
+                }
                 disabled={chatLoading}
               >
                 Approve &amp; post

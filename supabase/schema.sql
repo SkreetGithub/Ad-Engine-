@@ -194,3 +194,6 @@ create policy "addy_brand_agent_memory_anon" on addy_brand_agent_memory for all 
 create policy "addy_creative_analysis_anon" on addy_creative_analysis for all using (true) with check (true);
 create policy "addy_social_posts_anon" on addy_social_posts for all using (true) with check (true);
 create policy "addy_chat_budget_events_anon" on addy_chat_budget_events for all using (true) with check (true);
+
+-- Intelligence v3 (memory recall, predictions, A/B, competitive): also run
+-- supabase/migrations/003-intelligence.sql in SQL Editor after this file.

@@ -7,6 +7,7 @@ import {
   Megaphone,
   Library,
   MessageCircle,
+  Brain,
   ListChecks,
   Upload,
   Play,
@@ -44,6 +45,7 @@ import { openAiBudgetRemaining } from "@/lib/addy-ai/config"
 import { cn } from "@/lib/utils"
 import type { ReviewCycleRecord, ReviewQueueItem } from "@/lib/addy-engine/types"
 import { BrandChatPanel } from "@/components/addy-workspace/brand-chat-panel"
+import { IntelligencePanel } from "@/components/addy-workspace/intelligence-panel"
 import { DailyReportPanel } from "@/components/addy-workspace/daily-report-panel"
 import { AddyFeedbackWindow } from "@/components/addy-workspace/addy-feedback-window"
 import { LearningHistoryPanel } from "@/components/addy-workspace/learning-history-panel"
@@ -233,6 +235,9 @@ export function CompanyWorkspace({ companyId }: { companyId: string }) {
           </TabsTrigger>
           <TabsTrigger value="chat" className="gap-1.5 text-xs">
             <MessageCircle className="h-3.5 w-3.5" /> Chat with {ADDY.name}
+          </TabsTrigger>
+          <TabsTrigger value="intelligence" className="gap-1.5 text-xs">
+            <Brain className="h-3.5 w-3.5" /> Intelligence
           </TabsTrigger>
           <TabsTrigger value="queue" className="gap-1.5 text-xs">
             <ListChecks className="h-3.5 w-3.5" /> Review queue
@@ -465,6 +470,10 @@ export function CompanyWorkspace({ companyId }: { companyId: string }) {
 
         <TabsContent value="chat">
           <BrandChatPanel company={company} view={view} onRefresh={refresh} />
+        </TabsContent>
+
+        <TabsContent value="intelligence">
+          <IntelligencePanel companyId={company.id} />
         </TabsContent>
 
         <TabsContent value="queue" className="space-y-4">

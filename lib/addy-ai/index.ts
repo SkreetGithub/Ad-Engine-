@@ -9,7 +9,7 @@ import {
 import { getOllamaResponse } from "@/lib/addy-ai/ollama"
 import { getOpenAIResponse } from "@/lib/addy-ai/openai"
 import { loadCumulativeLessons } from "@/lib/addy-persistence"
-import { appendBrandInsight } from "@/lib/addy-persistence/brand-agent"
+import { storeMemoryEntry } from "@/lib/addy-intelligence/memory"
 
 export function buildAddyContext(
   company: Company,
@@ -62,6 +62,7 @@ export async function getAddyResponse(
   options?: {
     assetIds?: string[]
     approveBudget?: boolean
+    intelligenceContext?: string
   }
 ): Promise<AddyResponseResult> {
   let s = resetOpenAiBudgetIfNewDay(settings)
@@ -106,6 +107,7 @@ export async function getAddyResponse(
     attachedAssets: attached,
     brandName: company.name,
     approveBudget: options?.approveBudget,
+    intelligenceContext: options?.intelligenceContext,
   })
 
   if (!result.ok) {
@@ -125,7 +127,10 @@ export async function getAddyResponse(
   const { cleanContent, action } = parsePendingAction(result.content)
   s = { ...s, openaiSpentToday: s.openaiSpentToday + result.cost }
 
-  void appendBrandInsight(company.id, message.slice(0, 200), cleanContent.slice(0, 300))
+  void storeMemoryEntry(company.id, `Q: ${message.slice(0, 200)}\nA: ${cleanContent.slice(0, 300)}`, {
+    impactScore: 0.55,
+    source: "chat",
+  })
 
   return {
     content: cleanContent,

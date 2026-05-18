@@ -20,6 +20,8 @@ export function parsePendingAction(content: string): {
         link: raw.link ? String(raw.link) : undefined,
         postId: raw.postId ? String(raw.postId) : undefined,
         dailyBudget: raw.dailyBudget ? Number(raw.dailyBudget) : undefined,
+        autoBoost: raw.autoBoost === true,
+        boostBudget: raw.boostBudget ? Number(raw.boostBudget) : undefined,
       }
     }
   } catch {
@@ -36,5 +38,7 @@ When Demetrius asks you to publish content, end your reply with a fenced block:
 {"type":"post_facebook","message":"exact post text","link":"optional url"}
 \`\`\`
 Valid types: post_facebook, post_instagram, post_tiktok, boost_post, run_review.
-Only include this block when he explicitly wants to post or boost. He must approve in the UI before it goes live.
+Optional fields: "autoBoost": true, "boostBudget": 5
+Only include when he explicitly wants to post. He must approve in the UI before it goes live.
+If creative looks like a winner, set autoBoost true and suggest $5 boost budget.
 `

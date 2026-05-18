@@ -30,6 +30,7 @@ export async function getOpenAIResponse(
     attachedAssets?: BrandingAsset[]
     brandName?: string
     approveBudget?: boolean
+    intelligenceContext?: string
   }
 ): Promise<OpenAiChatResult> {
   const apiKey = process.env.OPENAI_API_KEY
@@ -66,6 +67,7 @@ export async function getOpenAIResponse(
     `Brand: ${options?.brandName || "client"}.`,
     `Be direct, profit-focused, and plain English. Use bullets when helpful.`,
     ADDY_ACTION_INSTRUCTIONS,
+    options?.intelligenceContext ? `\n${options.intelligenceContext}` : "",
     `Context:\n${contextPrompt}`,
   ].join("\n")
 

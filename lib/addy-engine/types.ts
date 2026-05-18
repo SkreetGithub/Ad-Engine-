@@ -76,6 +76,15 @@ export interface ChatPendingAction {
   link?: string
   postId?: string
   dailyBudget?: number
+  autoBoost?: boolean
+  boostBudget?: number
+}
+
+export interface ProfitPredictionSummary {
+  predictedRoi: number
+  confidenceScore: number
+  suggestedBudget: number
+  verdict: string
 }
 
 export interface ChatMessage {
@@ -90,6 +99,8 @@ export interface ChatMessage {
     pendingAction?: ChatPendingAction
     profitScore?: number
     creativeNote?: string
+    prediction?: ProfitPredictionSummary
+    memoriesUsed?: number
   }
 }
 
