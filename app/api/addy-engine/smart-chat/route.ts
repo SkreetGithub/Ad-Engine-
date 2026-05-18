@@ -14,6 +14,8 @@ import type { ChatMessage, ChatPendingAction } from "@/lib/addy-engine/types"
 import { executeSocialPost, type SocialPlatform } from "@/lib/platforms"
 import { runAutoBoost } from "@/lib/addy-intelligence/auto-boost"
 import { storeMemoryEntry } from "@/lib/addy-intelligence/memory"
+import { runSuperBrain } from "@/lib/addy-super-brain"
+import { isTechnicalQuestion } from "@/lib/addy-super-brain/codebase-context"
 import { getSupabase, hasSupabase } from "@/lib/supabase"
 import {
   assertBodySize,
@@ -25,6 +27,7 @@ import {
 } from "@/lib/security/api-guard"
 
 export const dynamic = "force-dynamic"
+export const maxDuration = 120
 
 function actionToPlatform(type: ChatPendingAction["type"]): SocialPlatform | null {
   if (type === "post_facebook") return "facebook"
@@ -57,12 +60,14 @@ export async function POST(request: Request) {
     let confirmAction: ChatPendingAction | null = null
     let autoBoost = false
     let boostBudget = 5
+    let superBrain = false
 
     if (contentType.includes("multipart/form-data")) {
       const form = await request.formData()
       companyId = assertValidCompanyId(form.get("companyId"))
       message = sanitizeChatMessage(String(form.get("message") || ""))
       approveBudget = form.get("approveBudget") === "true"
+      superBrain = form.get("superBrain") === "true"
       autoBoost = form.get("autoBoost") === "true"
       boostBudget = Math.min(50, Math.max(1, Number(form.get("boostBudget")) || 5))
       const ids = form.get("assetIds")
@@ -92,6 +97,7 @@ export async function POST(request: Request) {
         confirmAction?: ChatPendingAction
         autoBoost?: boolean
         boostBudget?: number
+        superBrain?: boolean
       }
       companyId = assertValidCompanyId(body.companyId)
       message = sanitizeChatMessage(body.message || "")
@@ -100,6 +106,7 @@ export async function POST(request: Request) {
       confirmAction = body.confirmAction ?? null
       autoBoost = body.autoBoost ?? false
       boostBudget = Math.min(50, Math.max(1, body.boostBudget ?? 5))
+      superBrain = body.superBrain ?? false
     }
 
     const company = await getCompany(companyId)
@@ -196,6 +203,43 @@ export async function POST(request: Request) {
     const pending = engine.queue.filter(
       (q) => q.companyId === company.id && q.status === "pending"
     ).length
+
+    const useSuperBrain = superBrain || isTechnicalQuestion(message)
+    if (useSuperBrain) {
+      const superResult = await runSuperBrain({
+        question: message,
+        companyId: company.id,
+        brandName: company.name,
+        forceSuperBrain: superBrain,
+      })
+      if (
+        superResult &&
+        (superResult.usedSuperBrain || superResult.source === "openai-codebase")
+      ) {
+        const userMsg: ChatMessage = {
+          id: newId("msg"),
+          role: "user",
+          content: message,
+          timestamp: new Date().toISOString(),
+          assetIds: assetIds.length ? assetIds : undefined,
+        }
+        const assistantMsg: ChatMessage = {
+          id: newId("msg"),
+          role: "assistant",
+          content: superResult.content,
+          timestamp: new Date().toISOString(),
+          meta: { mode: "openai", cost: superResult.cost, creativeNote: `super:${superResult.source}` },
+        }
+        const chat = await appendChat(company.id, [userMsg, assistantMsg])
+        return NextResponse.json({
+          messages: chat,
+          mode: "openai",
+          usedSuperBrain: true,
+          superBrainSource: superResult.source,
+          cursorAgentUrl: superResult.cursorAgentUrl,
+        })
+      }
+    }
 
     const intel = await buildIntelligenceContext(company, message, running)
     const intelligenceContext = [intel.memoryBlock, intel.predictionBlock, intel.competitiveBlock]

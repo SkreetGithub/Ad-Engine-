@@ -35,6 +35,10 @@ export function BrandChatPanel({
   } | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  function isTechnical(text: string) {
+    return /\b(code|bug|optimize|improve|faster|sql|deploy|cursor|fix|cron)\b/i.test(text)
+  }
+
   const settings = view.settings
   const remaining = openAiBudgetRemaining(settings)
   const effective = effectiveOpenAiBudget(settings)
@@ -56,6 +60,7 @@ export function BrandChatPanel({
         const fd = new FormData()
         fd.append("companyId", company.id)
         fd.append("message", text || `Profit analysis for ${pendingFile.name}`)
+        if (isTechnical(text)) fd.append("superBrain", "true")
         fd.append("file", pendingFile)
         if (opts?.approveBudget) fd.append("approveBudget", "true")
         fd.append("autoBoost", String(autoBoost))
@@ -69,6 +74,7 @@ export function BrandChatPanel({
           body: JSON.stringify({
             companyId: company.id,
             message: text || "Confirm action",
+            superBrain: isTechnical(text) || undefined,
             approveBudget: opts?.approveBudget,
             confirmAction: opts?.confirmAction
               ? {
