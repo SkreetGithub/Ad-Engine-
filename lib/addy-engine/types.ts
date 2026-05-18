@@ -68,12 +68,29 @@ export interface ReviewQueueItem {
   scheduledFor?: string
 }
 
+export type ChatActionType = "post_facebook" | "post_instagram" | "post_tiktok" | "boost_post" | "run_review"
+
+export interface ChatPendingAction {
+  type: ChatActionType
+  message: string
+  link?: string
+  postId?: string
+  dailyBudget?: number
+}
+
 export interface ChatMessage {
   id: string
   role: "user" | "assistant" | "system"
   content: string
   timestamp: string
-  meta?: { mode?: AiMode; cost?: number }
+  assetIds?: string[]
+  meta?: {
+    mode?: AiMode
+    cost?: number
+    pendingAction?: ChatPendingAction
+    profitScore?: number
+    creativeNote?: string
+  }
 }
 
 export interface AddySettings {
@@ -81,6 +98,9 @@ export interface AddySettings {
   openaiDailyBudget: number
   openaiSpentToday: number
   openaiSpentDate: string
+  /** Boss-approved extra $ for chat today (increments of $1) */
+  openaiBonusBudgetToday: number
+  openaiBonusIncrementsToday: number
   ollamaUrl: string
   ollamaModel: string
   lastDailyReviewAt?: string

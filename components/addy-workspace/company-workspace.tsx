@@ -43,6 +43,7 @@ import { ADDY, formatProfitRatio, profitRatioProgress, cxGoalLabel } from "@/lib
 import { openAiBudgetRemaining } from "@/lib/addy-ai/config"
 import { cn } from "@/lib/utils"
 import type { ReviewCycleRecord, ReviewQueueItem } from "@/lib/addy-engine/types"
+import { BrandChatPanel } from "@/components/addy-workspace/brand-chat-panel"
 import { DailyReportPanel } from "@/components/addy-workspace/daily-report-panel"
 import { AddyFeedbackWindow } from "@/components/addy-workspace/addy-feedback-window"
 import { LearningHistoryPanel } from "@/components/addy-workspace/learning-history-panel"
@@ -53,8 +54,6 @@ export function CompanyWorkspace({ companyId }: { companyId: string }) {
   const { updateCompany } = useAddy()
   const { company, view, loading, error, refresh } = useCompanyEngine(companyId)
   const [tab, setTab] = useState("overview")
-  const [chatInput, setChatInput] = useState("")
-  const [chatLoading, setChatLoading] = useState(false)
   const [reviewLoading, setReviewLoading] = useState(false)
   const [debugLog, setDebugLog] = useState<string[]>([])
   const [strategyDraft, setStrategyDraft] = useState("")
@@ -81,7 +80,7 @@ export function CompanyWorkspace({ companyId }: { companyId: string }) {
           On production, Addy needs Supabase: set{" "}
           <code className="text-xs">SUPABASE_URL</code> and{" "}
           <code className="text-xs">SUPABASE_ANON_KEY</code> in Vercel, then run{" "}
-          <code className="text-xs">supabase/addy-schema.sql</code> in your Supabase SQL editor.
+          <code className="text-xs">supabase/schema.sql</code> in your Supabase SQL editor.
         </p>
         <Button asChild className="mt-4">
           <Link href="/companies">Back to companies</Link>
@@ -168,23 +167,6 @@ export function CompanyWorkspace({ companyId }: { companyId: string }) {
       body: JSON.stringify({ status: "cut" }),
     })
     refresh()
-  }
-
-  async function sendChat() {
-    if (!chatInput.trim()) return
-    setChatLoading(true)
-    const msg = chatInput
-    setChatInput("")
-    try {
-      await fetch("/api/addy-engine/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyId: company.id, message: msg }),
-      })
-      refresh()
-    } finally {
-      setChatLoading(false)
-    }
   }
 
   async function uploadAsset(file: File) {
@@ -482,60 +464,7 @@ export function CompanyWorkspace({ companyId }: { companyId: string }) {
         </TabsContent>
 
         <TabsContent value="chat">
-          <Card className="flex h-[520px] flex-col border-primary/20">
-            <CardHeader className="border-b border-border py-3">
-              <div className="flex items-center gap-2">
-                <AddyAvatar size="sm" pulse />
-                <div>
-                  <CardTitle className="text-sm">Chat with {ADDY.name}</CardTitle>
-                  <p className="text-[10px] text-muted-foreground">
-                    Mode: {view.settings.aiMode} · OpenAI left today: ${budgetRemaining.toFixed(2)}
-                  </p>
-                </div>
-              </div>
-              <Progress value={budgetPct} className="mt-2 h-1" />
-            </CardHeader>
-            <CardContent className="flex flex-1 flex-col gap-3 overflow-hidden p-4">
-              <div className="flex-1 space-y-3 overflow-y-auto pr-2">
-                {view.chat.length === 0 && (
-                  <p className="text-center text-sm text-muted-foreground">
-                    Ask {ADDY.name}: &quot;Which ad should I cut?&quot; · &quot;Create ad from library&quot; ·
-                    &quot;Why is profit dropping?&quot;
-                  </p>
-                )}
-                {view.chat.map((m) => (
-                  <div
-                    key={m.id}
-                    className={cn(
-                      "max-w-[85%] rounded-lg px-3 py-2 text-sm",
-                      m.role === "user"
-                        ? "ml-auto bg-primary text-primary-foreground"
-                        : "bg-secondary text-foreground"
-                    )}
-                  >
-                    <p className="whitespace-pre-wrap">{m.content}</p>
-                    {m.meta?.mode && (
-                      <p className="mt-1 text-[9px] opacity-70">
-                        {m.meta.mode}
-                        {m.meta.cost ? ` · $${m.meta.cost.toFixed(4)}` : ""}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <Input
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  placeholder={`Message ${ADDY.name}…`}
-                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendChat()}
-                />
-                <Button onClick={sendChat} disabled={chatLoading}>
-                  {chatLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <BrandChatPanel company={company} view={view} onRefresh={refresh} />
         </TabsContent>
 
         <TabsContent value="queue" className="space-y-4">

@@ -1,16 +1,22 @@
 /** Addy — your AI social media manager for paid ads */
 
+export const ADDY_OWNER = {
+  name: "Demetrius",
+  title: "Owner & CEO",
+} as const
+
 export const ADDY_MISSION =
-  "Maximize profitable ad spend for the owner: cut losers fast, scale winners, protect daily budget, and improve customer experience on every touchpoint."
+  "Maximize profitable ad spend for Demetrius and each brand he manages: cut losers fast, scale winners, protect daily budget, and improve customer experience on every touchpoint."
 
 export const ADDY = {
   name: "Addy",
-  role: "Social Media Manager",
-  tagline: "Your ads, her expertise — profit and customer experience in balance.",
+  role: "Social Media Ad Manager",
+  tagline: "Demetrius runs the engine — Addy runs profit for every brand.",
   shortBio:
-    "Addy runs your Meta ad playbook per company: syncs Facebook data, writes plain-English daily reports, and learns from each review to make you more profit.",
-  version: "2.0",
+    "Addy is your per-brand agent: syncs Facebook & Instagram, analyzes creatives you upload, posts when you approve, and compounds lessons in Supabase after every daily review.",
+  version: "3.0",
   mission: ADDY_MISSION,
+  owner: ADDY_OWNER.name,
 } as const
 
 export function formatProfitRatio(ratio: number): string {

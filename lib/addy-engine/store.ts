@@ -18,6 +18,7 @@ import type {
   ReviewQueueItem,
   RunningAd,
 } from "@/lib/addy-engine/types"
+import { syncReviewToBrain } from "@/lib/addy-brain-bridge"
 import { getCompany, listCompanies, updateCompany } from "@/lib/companies-store"
 import { migrateCompany } from "@/lib/companies/types"
 
@@ -173,9 +174,11 @@ export async function ensureEngineSeeded(): Promise<AddyEngineStore> {
     return m
   })
 
+  const seedDemo = process.env.ADDY_DEMO_SEED === "true"
+
   for (const company of companiesStore.companies) {
     const hasAds = engine.runningAds.some((a) => a.companyId === company.id)
-    if (!hasAds) {
+    if (!hasAds && seedDemo) {
       const { running, library } = seedSampleAds(company.id)
       engine.runningAds.push(...running)
       engine.libraryAds.push(...library)
@@ -227,6 +230,8 @@ export async function appendLearningHistory(record: ReviewCycleRecord): Promise<
     engine.learningHistory = engine.learningHistory.slice(-200)
   }
   await persistReviewCycle(record)
+  const company = await getCompany(record.companyId)
+  if (company) await syncReviewToBrain(company, record)
   await writeEngine(engine)
 }
 

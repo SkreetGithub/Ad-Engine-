@@ -56,7 +56,7 @@ export function AddyAiSettings() {
           <div>
             <CardTitle className="text-sm">{ADDY.name} AI backend</CardTitle>
             <p className="text-xs text-muted-foreground">
-              Mock (free) · Ollama (local) · OpenAI (budget-limited)
+              Chat only — daily reviews &amp; profit rules always use real ad numbers
             </p>
           </div>
         </div>
@@ -72,11 +72,16 @@ export function AddyAiSettings() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="mock">Mock — free, rule-based</SelectItem>
-              <SelectItem value="ollama">Ollama — local LLM</SelectItem>
-              <SelectItem value="openai">OpenAI — best quality (~$0.002/call)</SelectItem>
+              <SelectItem value="mock">Legacy mock (not recommended)</SelectItem>
+              <SelectItem value="ollama">Ollama — local AI chat on your machine</SelectItem>
+              <SelectItem value="openai">OpenAI — smartest chat (~$0.002/message)</SelectItem>
             </SelectContent>
           </Select>
+          <p className="text-[10px] leading-relaxed text-muted-foreground">
+            Mock does not call OpenAI — it uses rules from your live ad stats. Profit cuts/keeps come
+            from daily review + Supabase lessons. OpenAI is for richer chat; Meta API is for real
+            Facebook spend.
+          </p>
         </div>
 
         <div className="space-y-2">

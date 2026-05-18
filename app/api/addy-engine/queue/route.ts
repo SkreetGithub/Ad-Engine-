@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { applyQueueToAds } from "@/lib/addy-engine/daily-review"
-import { addRunningAd, readEngine, updateQueueItem, writeEngine, getCompanyView } from "@/lib/addy-engine/store"
+import { updateCompany } from "@/lib/companies-store"
+import { readEngine, updateQueueItem, writeEngine, getCompanyView } from "@/lib/addy-engine/store"
 import type { RunningAd } from "@/lib/addy-engine/types"
 
 export async function PATCH(request: NextRequest) {
@@ -48,6 +49,12 @@ export async function PATCH(request: NextRequest) {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         })
+      }
+      if (item.action === "budget_change" && item.payload) {
+        const nextBudget = Number((item.payload as { dailyBudget?: number }).dailyBudget)
+        if (nextBudget > 0) {
+          await updateCompany(item.companyId, { dailyAdBudget: nextBudget })
+        }
       }
       await writeEngine(engine)
     }
