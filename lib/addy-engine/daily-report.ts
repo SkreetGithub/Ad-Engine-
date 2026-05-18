@@ -11,6 +11,8 @@ export interface DailyReportInput {
   library: LibraryAd[]
   meta?: MetaSyncResult | null
   queueSummary?: { cuts: number; keeps: number; pauses: number; newAds: number }
+  /** Consolidated signals from memory, audits, Super Brain, A/B, Meta, etc. */
+  feedbackNarrative?: string
 }
 
 export async function buildPlainEnglishDailyReport(input: DailyReportInput): Promise<{
@@ -18,7 +20,7 @@ export async function buildPlainEnglishDailyReport(input: DailyReportInput): Pro
   recommendations: string[]
   lessonsLearned: string[]
 }> {
-  const { company, runningAds, library, meta, queueSummary } = input
+  const { company, runningAds, library, meta, queueSummary, feedbackNarrative } = input
   const active = runningAds.filter((a) => a.status === "active")
   const spend = meta?.ok ? meta.totalSpend : company.currentAdSpend
   const profit = meta?.ok ? meta.totalProfit : company.currentProfit
@@ -38,6 +40,15 @@ export async function buildPlainEnglishDailyReport(input: DailyReportInput): Pro
   if (pastLessons.length) {
     lessonsLearned.push(
       `Addy remembers from past reviews: ${pastLessons.slice(0, 5).join(" · ")}`
+    )
+  }
+
+  if (feedbackNarrative?.trim()) {
+    lessonsLearned.push(
+      "Cron pulled all learning signals (memory, audits, Super Brain, A/B, competitive, social) before this review."
+    )
+    recommendations.push(
+      `Stay within $${company.dailyAdBudget}/day — prioritize cuts on losers using consolidated feedback below.`
     )
   }
 
@@ -145,8 +156,12 @@ ${recommendations.map((r, i) => `${i + 1}. ${r}`).join("\n")}
       ? `\n### What Addy has learned about ${company.name}\n${pastLessons.slice(0, 8).map((l) => `• ${l}`).join("\n")}\n`
       : ""
 
+  const feedbackBlock = feedbackNarrative?.trim()
+    ? `\n### Consolidated feedback (all sources)\n${feedbackNarrative.slice(0, 2500)}\n`
+    : ""
+
   return {
-    report: report + selfImproveBlock,
+    report: report + selfImproveBlock + feedbackBlock,
     recommendations,
     lessonsLearned,
   }

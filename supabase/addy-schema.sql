@@ -1,2 +1,0 @@
--- Addy tables are included in supabase/schema.sql (Part B).
--- Run the full file once: supabase/schema.sql

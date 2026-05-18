@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { getCompany } from "@/lib/companies-store"
 import { buildPlainEnglishDailyReport } from "@/lib/addy-engine/daily-report"
+import { persistDailyAudit } from "@/lib/addy-intelligence/daily-audit"
+import { boostMemoryImpact } from "@/lib/addy-intelligence/memory"
 import { runDailyReview, applyQueueToAds } from "@/lib/addy-engine/daily-review"
 import { syncMetaForCompany } from "@/lib/addy-engine/meta-sync"
 import {
@@ -75,6 +77,10 @@ export async function POST(request: Request) {
       debugLog,
     }
     await appendLearningHistory(cycle)
+    await persistDailyAudit(company, cycle)
+    for (const lesson of cycle.lessonsLearned.slice(0, 3)) {
+      await boostMemoryImpact(company.id, lesson, cycle.profit)
+    }
 
     let engineAfter = await readEngine()
 

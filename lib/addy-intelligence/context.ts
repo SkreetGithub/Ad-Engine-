@@ -3,11 +3,13 @@ import type { RunningAd } from "@/lib/addy-engine/types"
 import { recallSimilarMemories } from "@/lib/addy-intelligence/memory"
 import { predictProfit } from "@/lib/addy-intelligence/profit-prediction"
 import { fetchCompetitiveIntel } from "@/lib/addy-intelligence/competitive"
+import { loadLatestDailyAudit } from "@/lib/addy-intelligence/daily-audit"
 
 export interface IntelligenceContext {
   memoryBlock: string
   predictionBlock: string
   competitiveBlock: string
+  auditBlock: string
   prediction: Awaited<ReturnType<typeof predictProfit>> | null
   memoriesUsed: number
 }
@@ -41,6 +43,11 @@ export async function buildIntelligenceContext(
     predictionBlock = `Profit prediction: ${prediction.predictedRoi.toFixed(2)}:1 (${(prediction.confidenceScore * 100).toFixed(0)}% confidence). Suggested test budget: $${prediction.suggestedBudget.toFixed(0)}. ${prediction.verdict}`
   }
 
+  const dailyAudit = await loadLatestDailyAudit(company.id)
+  const auditBlock = dailyAudit
+    ? `Latest consolidated daily audit (${dailyAudit.auditDate}):\n${dailyAudit.decisionBrief.slice(0, 1500)}`
+    : ""
+
   let competitiveBlock = ""
   if (opts.includeCompetitive !== false && /competitor|industry|market|trend/i.test(userMessage)) {
     const intel = await fetchCompetitiveIntel(company)
@@ -53,6 +60,7 @@ export async function buildIntelligenceContext(
     memoryBlock,
     predictionBlock,
     competitiveBlock,
+    auditBlock,
     prediction,
     memoriesUsed: memories.length,
   }

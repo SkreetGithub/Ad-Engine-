@@ -1,199 +1,371 @@
 -- =============================================================================
--- Addy + AI Business Engine — run this ENTIRE file once in Supabase SQL Editor
--- Creates all tables for: company workspaces, daily reviews, RL brain, creatives
+-- Addy Ad Engine — complete Supabase schema (run once in SQL Editor)
+-- Safe to re-run: uses IF NOT EXISTS + idempotent policies
+-- Optional hosted cron: supabase/optional-pg-cron.sql
+--   → /api/cron/addy-cycle every 6h (Meta + feedback gather + profit review)
 -- =============================================================================
+
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- -----------------------------------------------------------------------------
 -- Part A: AI Business Engine (optimizer brain — /api/ai-engine/run)
 -- -----------------------------------------------------------------------------
 
-create table if not exists brain_memory (
-  id uuid primary key default gen_random_uuid(),
-  state jsonb not null,
-  action text not null,
-  reward double precision not null,
-  created_at timestamptz default now()
+CREATE TABLE IF NOT EXISTS brain_memory (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  state jsonb NOT NULL,
+  action text NOT NULL,
+  reward double precision NOT NULL,
+  created_at timestamptz DEFAULT now()
 );
 
-create index if not exists brain_memory_created_at on brain_memory(created_at desc);
+CREATE INDEX IF NOT EXISTS brain_memory_created_at ON brain_memory(created_at DESC);
 
-create table if not exists creative_memory (
-  id uuid primary key default gen_random_uuid(),
+CREATE TABLE IF NOT EXISTS creative_memory (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   hook text,
   style text,
   pacing double precision,
   cta text,
-  created_at timestamptz default now()
+  created_at timestamptz DEFAULT now()
 );
 
-create index if not exists creative_memory_created_at on creative_memory(created_at desc);
+CREATE INDEX IF NOT EXISTS creative_memory_created_at ON creative_memory(created_at DESC);
 
-create table if not exists profit_log (
-  id uuid primary key default gen_random_uuid(),
-  profit double precision not null,
-  created_at timestamptz default now()
+CREATE TABLE IF NOT EXISTS profit_log (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  profit double precision NOT NULL,
+  company_id text,
+  roi double precision,
+  action text,
+  cost double precision DEFAULT 0,
+  created_at timestamptz DEFAULT now()
 );
 
-create index if not exists profit_log_created_at on profit_log(created_at desc);
+CREATE INDEX IF NOT EXISTS profit_log_created_at ON profit_log(created_at DESC);
 
-create table if not exists ai_swarm_state (
-  id text primary key default 'default',
-  ads jsonb not null default '[]',
-  dataset jsonb not null default '[]',
-  updated_at timestamptz default now()
+ALTER TABLE profit_log ADD COLUMN IF NOT EXISTS company_id text;
+ALTER TABLE profit_log ADD COLUMN IF NOT EXISTS roi double precision;
+ALTER TABLE profit_log ADD COLUMN IF NOT EXISTS action text;
+ALTER TABLE profit_log ADD COLUMN IF NOT EXISTS cost double precision DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS ai_swarm_state (
+  id text PRIMARY KEY DEFAULT 'default',
+  ads jsonb NOT NULL DEFAULT '[]',
+  dataset jsonb NOT NULL DEFAULT '[]',
+  updated_at timestamptz DEFAULT now()
 );
 
-create table if not exists debug_memory (
-  id uuid primary key default gen_random_uuid(),
+CREATE TABLE IF NOT EXISTS debug_memory (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   error text,
   context jsonb,
   root_cause text,
-  created_at timestamptz default now()
+  created_at timestamptz DEFAULT now()
 );
 
-create index if not exists debug_memory_created_at on debug_memory(created_at desc);
-
-comment on table brain_memory is 'RL agent memory: state, action, reward for learning';
-comment on table creative_memory is 'Creative evolution: hooks, styles, pacing, CTA';
-comment on table profit_log is 'Profit per step for neural training and ROI tracking';
-comment on table ai_swarm_state is 'Persisted swarm state (ads + training dataset)';
-comment on table debug_memory is 'Autonomous Debug AI: logged failures and root cause';
+CREATE INDEX IF NOT EXISTS debug_memory_created_at ON debug_memory(created_at DESC);
 
 -- -----------------------------------------------------------------------------
--- Part B: Addy Ad Strategy Manager (companies, reviews, lessons — Vercel)
+-- Part B: Addy — companies, reviews, engine state, chat
 -- -----------------------------------------------------------------------------
 
-create table if not exists addy_companies (
-  id text primary key,
-  payload jsonb not null default '{}',
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+CREATE TABLE IF NOT EXISTS addy_companies (
+  id text PRIMARY KEY,
+  payload jsonb NOT NULL DEFAULT '{}',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-create table if not exists addy_app_state (
-  id text primary key default 'global',
+CREATE TABLE IF NOT EXISTS addy_app_state (
+  id text PRIMARY KEY DEFAULT 'global',
   active_company_id text,
-  settings jsonb not null default '{}',
-  engine jsonb not null default '{}',
-  updated_at timestamptz not null default now()
+  settings jsonb NOT NULL DEFAULT '{}',
+  engine jsonb NOT NULL DEFAULT '{}',
+  updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-create table if not exists addy_review_cycles (
-  id text primary key,
-  company_id text not null references addy_companies(id) on delete cascade,
-  payload jsonb not null default '{}',
-  created_at timestamptz not null default now()
+CREATE TABLE IF NOT EXISTS addy_review_cycles (
+  id text PRIMARY KEY,
+  company_id text NOT NULL REFERENCES addy_companies(id) ON DELETE CASCADE,
+  payload jsonb NOT NULL DEFAULT '{}',
+  created_at timestamptz NOT NULL DEFAULT now()
 );
 
-create index if not exists addy_review_cycles_company_created
-  on addy_review_cycles(company_id, created_at desc);
+CREATE INDEX IF NOT EXISTS addy_review_cycles_company_created
+  ON addy_review_cycles(company_id, created_at DESC);
 
-create table if not exists addy_lessons (
-  id uuid primary key default gen_random_uuid(),
-  company_id text not null references addy_companies(id) on delete cascade,
-  lesson text not null,
+CREATE TABLE IF NOT EXISTS addy_lessons (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id text NOT NULL REFERENCES addy_companies(id) ON DELETE CASCADE,
+  lesson text NOT NULL,
   source_cycle_id text,
-  created_at timestamptz not null default now()
+  created_at timestamptz NOT NULL DEFAULT now()
 );
 
-create index if not exists addy_lessons_company_created
-  on addy_lessons(company_id, created_at desc);
+CREATE INDEX IF NOT EXISTS addy_lessons_company_created
+  ON addy_lessons(company_id, created_at DESC);
 
-create table if not exists addy_cron_runs (
-  id uuid primary key default gen_random_uuid(),
-  status text not null default 'ok',
-  companies_processed int not null default 0,
+CREATE TABLE IF NOT EXISTS addy_cron_runs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  status text NOT NULL DEFAULT 'ok',
+  companies_processed int NOT NULL DEFAULT 0,
   summary text,
-  details jsonb default '[]',
-  created_at timestamptz not null default now()
+  details jsonb DEFAULT '[]',
+  created_at timestamptz NOT NULL DEFAULT now()
 );
 
-comment on table addy_companies is 'Addy: per-brand company profiles';
-comment on table addy_app_state is 'Addy: global settings + engine JSON';
-comment on table addy_review_cycles is 'Addy: daily review reports per company';
-comment on table addy_lessons is 'Addy: learned patterns per company';
-comment on table addy_cron_runs is 'Addy: scheduled daily job audit trail';
-
--- Per-brand agent memory (chat insights, owner notes, platform prefs)
-create table if not exists addy_brand_agent_memory (
-  company_id text primary key references addy_companies(id) on delete cascade,
-  owner_name text not null default 'Demetrius',
-  insights jsonb not null default '[]',
-  platform_prefs jsonb not null default '{}',
-  updated_at timestamptz not null default now()
+CREATE TABLE IF NOT EXISTS addy_brand_agent_memory (
+  company_id text PRIMARY KEY REFERENCES addy_companies(id) ON DELETE CASCADE,
+  owner_name text NOT NULL DEFAULT 'Demetrius',
+  insights jsonb NOT NULL DEFAULT '[]',
+  platform_prefs jsonb NOT NULL DEFAULT '{}',
+  super_learning_count int NOT NULL DEFAULT 0,
+  last_cursor_sync timestamptz,
+  updated_at timestamptz NOT NULL DEFAULT now()
 );
 
--- Creative profit analysis from uploaded images/video
-create table if not exists addy_creative_analysis (
-  id uuid primary key default gen_random_uuid(),
-  company_id text not null references addy_companies(id) on delete cascade,
-  asset_id text not null,
+ALTER TABLE addy_brand_agent_memory ADD COLUMN IF NOT EXISTS super_learning_count int DEFAULT 0;
+ALTER TABLE addy_brand_agent_memory ADD COLUMN IF NOT EXISTS last_cursor_sync timestamptz;
+
+CREATE TABLE IF NOT EXISTS addy_creative_analysis (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id text NOT NULL REFERENCES addy_companies(id) ON DELETE CASCADE,
+  asset_id text NOT NULL,
   profit_score double precision,
-  analysis text not null,
-  created_at timestamptz not null default now()
+  analysis text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
 );
 
-create index if not exists addy_creative_analysis_company
-  on addy_creative_analysis(company_id, created_at desc);
+CREATE INDEX IF NOT EXISTS addy_creative_analysis_company
+  ON addy_creative_analysis(company_id, created_at DESC);
 
--- Social posts pushed from Addy chat (Facebook, Instagram, TikTok)
-create table if not exists addy_social_posts (
-  id uuid primary key default gen_random_uuid(),
-  company_id text not null references addy_companies(id) on delete cascade,
-  platform text not null,
+CREATE TABLE IF NOT EXISTS addy_social_posts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id text NOT NULL REFERENCES addy_companies(id) ON DELETE CASCADE,
+  platform text NOT NULL,
   external_post_id text,
   message text,
-  payload jsonb default '{}',
-  created_at timestamptz not null default now()
+  payload jsonb DEFAULT '{}',
+  auto_boost boolean DEFAULT false,
+  boost_budget double precision DEFAULT 5.00,
+  boost_status text DEFAULT 'pending',
+  created_at timestamptz NOT NULL DEFAULT now()
 );
 
--- OpenAI chat budget events (increments, top-up alerts)
-create table if not exists addy_chat_budget_events (
-  id uuid primary key default gen_random_uuid(),
-  event_type text not null,
-  amount double precision default 0,
+ALTER TABLE addy_social_posts ADD COLUMN IF NOT EXISTS auto_boost boolean DEFAULT false;
+ALTER TABLE addy_social_posts ADD COLUMN IF NOT EXISTS boost_budget double precision DEFAULT 5.00;
+ALTER TABLE addy_social_posts ADD COLUMN IF NOT EXISTS boost_status text DEFAULT 'pending';
+
+CREATE TABLE IF NOT EXISTS addy_chat_budget_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_type text NOT NULL,
+  amount double precision DEFAULT 0,
   note text,
-  created_at timestamptz not null default now()
+  created_at timestamptz NOT NULL DEFAULT now()
 );
 
-comment on table addy_brand_agent_memory is 'Per-brand Addy agent: learns from chat + reviews';
-comment on table addy_creative_analysis is 'Profit potential score for uploaded creatives';
-comment on table addy_social_posts is 'Posts published via Addy chat actions';
-comment on table addy_chat_budget_events is 'Boss budget approvals and top-up alerts';
+-- -----------------------------------------------------------------------------
+-- Part C: Intelligence — memory, predictions, A/B, competitive intel
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS addy_memory_entries (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id text NOT NULL REFERENCES addy_companies(id) ON DELETE CASCADE,
+  memory text NOT NULL,
+  impact_score double precision NOT NULL DEFAULT 0.5,
+  profit_impact double precision DEFAULT 0,
+  applied_at timestamptz,
+  source text DEFAULT 'chat',
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS addy_memory_entries_company_impact
+  ON addy_memory_entries(company_id, impact_score DESC, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS addy_profit_predictions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id text NOT NULL REFERENCES addy_companies(id) ON DELETE CASCADE,
+  creative_summary text,
+  predicted_roi double precision NOT NULL,
+  confidence_score double precision NOT NULL DEFAULT 0.5,
+  suggested_budget double precision,
+  actual_roi double precision,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS addy_profit_predictions_company
+  ON addy_profit_predictions(company_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS addy_competitive_intel (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id text NOT NULL REFERENCES addy_companies(id) ON DELETE CASCADE,
+  competitor_name text NOT NULL,
+  ad_copy text,
+  estimated_ctr double precision,
+  addy_notes text,
+  detected_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS addy_competitive_intel_company
+  ON addy_competitive_intel(company_id, detected_at DESC);
+
+CREATE TABLE IF NOT EXISTS addy_ab_tests (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id text NOT NULL REFERENCES addy_companies(id) ON DELETE CASCADE,
+  test_name text NOT NULL,
+  variant_a_creative text NOT NULL,
+  variant_b_creative text NOT NULL,
+  budget_per_variant double precision NOT NULL DEFAULT 15,
+  spend_a double precision DEFAULT 0,
+  spend_b double precision DEFAULT 0,
+  roi_a double precision DEFAULT 0,
+  roi_b double precision DEFAULT 0,
+  status text NOT NULL DEFAULT 'running',
+  winner text,
+  started_at timestamptz NOT NULL DEFAULT now(),
+  ended_at timestamptz
+);
+
+CREATE INDEX IF NOT EXISTS addy_ab_tests_company_status
+  ON addy_ab_tests(company_id, status);
+
+-- -----------------------------------------------------------------------------
+-- Part D: Super Brain, daily audit, cron locks
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS addy_super_learning (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id text NOT NULL REFERENCES addy_companies(id) ON DELETE CASCADE,
+  question text NOT NULL,
+  cursor_answer text NOT NULL,
+  used_cursor boolean NOT NULL DEFAULT false,
+  agent_url text,
+  was_helpful boolean,
+  profit_impact double precision,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS addy_super_learning_company
+  ON addy_super_learning(company_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS addy_daily_audit (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id text NOT NULL REFERENCES addy_companies(id) ON DELETE CASCADE,
+  audit_date date NOT NULL DEFAULT CURRENT_DATE,
+  portfolio_roas double precision NOT NULL DEFAULT 0,
+  spend double precision NOT NULL DEFAULT 0,
+  profit double precision NOT NULL DEFAULT 0,
+  target_roas double precision NOT NULL DEFAULT 3,
+  budget_used_pct double precision NOT NULL DEFAULT 0,
+  cuts_recommended int NOT NULL DEFAULT 0,
+  keeps_recommended int NOT NULL DEFAULT 0,
+  decision_brief text NOT NULL DEFAULT '',
+  benchmarks jsonb NOT NULL DEFAULT '{}',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (company_id, audit_date)
+);
+
+CREATE INDEX IF NOT EXISTS addy_daily_audit_company_date
+  ON addy_daily_audit(company_id, audit_date DESC);
+
+CREATE TABLE IF NOT EXISTS addy_cron_locks (
+  job_name text PRIMARY KEY,
+  locked_at timestamptz NOT NULL DEFAULT now(),
+  expires_at timestamptz NOT NULL,
+  locked_by text
+);
+
+-- Recall similar memories (keyword + impact) for chat and reviews
+CREATE OR REPLACE FUNCTION recall_similar_situations(
+  p_company_id text,
+  p_question text,
+  p_limit int DEFAULT 5
+)
+RETURNS TABLE (
+  memory text,
+  impact_score double precision,
+  similarity_score double precision
+) LANGUAGE sql STABLE AS $$
+  SELECT
+    m.memory,
+    m.impact_score,
+    GREATEST(
+      similarity(lower(m.memory), lower(p_question)),
+      CASE WHEN m.memory ILIKE '%' || split_part(lower(p_question), ' ', 1) || '%' THEN 0.3 ELSE 0 END
+    ) AS similarity_score
+  FROM addy_memory_entries m
+  WHERE m.company_id = p_company_id
+    AND m.impact_score >= 0.4
+  ORDER BY similarity_score DESC, m.impact_score DESC, m.created_at DESC
+  LIMIT p_limit;
+$$;
 
 -- -----------------------------------------------------------------------------
 -- Row Level Security (anon key from Next.js on Vercel)
 -- -----------------------------------------------------------------------------
 
-alter table brain_memory enable row level security;
-alter table creative_memory enable row level security;
-alter table profit_log enable row level security;
-alter table ai_swarm_state enable row level security;
-alter table debug_memory enable row level security;
-alter table addy_companies enable row level security;
-alter table addy_app_state enable row level security;
-alter table addy_review_cycles enable row level security;
-alter table addy_lessons enable row level security;
-alter table addy_cron_runs enable row level security;
-alter table addy_brand_agent_memory enable row level security;
-alter table addy_creative_analysis enable row level security;
-alter table addy_social_posts enable row level security;
-alter table addy_chat_budget_events enable row level security;
+ALTER TABLE brain_memory ENABLE ROW LEVEL SECURITY;
+ALTER TABLE creative_memory ENABLE ROW LEVEL SECURITY;
+ALTER TABLE profit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_swarm_state ENABLE ROW LEVEL SECURITY;
+ALTER TABLE debug_memory ENABLE ROW LEVEL SECURITY;
+ALTER TABLE addy_companies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE addy_app_state ENABLE ROW LEVEL SECURITY;
+ALTER TABLE addy_review_cycles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE addy_lessons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE addy_cron_runs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE addy_brand_agent_memory ENABLE ROW LEVEL SECURITY;
+ALTER TABLE addy_creative_analysis ENABLE ROW LEVEL SECURITY;
+ALTER TABLE addy_social_posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE addy_chat_budget_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE addy_memory_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE addy_profit_predictions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE addy_competitive_intel ENABLE ROW LEVEL SECURITY;
+ALTER TABLE addy_ab_tests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE addy_super_learning ENABLE ROW LEVEL SECURITY;
+ALTER TABLE addy_daily_audit ENABLE ROW LEVEL SECURITY;
+ALTER TABLE addy_cron_locks ENABLE ROW LEVEL SECURITY;
 
-create policy "brain_memory_anon" on brain_memory for all using (true) with check (true);
-create policy "creative_memory_anon" on creative_memory for all using (true) with check (true);
-create policy "profit_log_anon" on profit_log for all using (true) with check (true);
-create policy "ai_swarm_state_anon" on ai_swarm_state for all using (true) with check (true);
-create policy "debug_memory_anon" on debug_memory for all using (true) with check (true);
-create policy "addy_companies_anon" on addy_companies for all using (true) with check (true);
-create policy "addy_app_state_anon" on addy_app_state for all using (true) with check (true);
-create policy "addy_review_cycles_anon" on addy_review_cycles for all using (true) with check (true);
-create policy "addy_lessons_anon" on addy_lessons for all using (true) with check (true);
-create policy "addy_cron_runs_anon" on addy_cron_runs for all using (true) with check (true);
-create policy "addy_brand_agent_memory_anon" on addy_brand_agent_memory for all using (true) with check (true);
-create policy "addy_creative_analysis_anon" on addy_creative_analysis for all using (true) with check (true);
-create policy "addy_social_posts_anon" on addy_social_posts for all using (true) with check (true);
-create policy "addy_chat_budget_events_anon" on addy_chat_budget_events for all using (true) with check (true);
-
--- Intelligence v3 (memory recall, predictions, A/B, competitive): also run
--- supabase/migrations/003-intelligence.sql in SQL Editor after this file.
+DO $$ BEGIN CREATE POLICY "brain_memory_anon" ON brain_memory FOR ALL USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE POLICY "creative_memory_anon" ON creative_memory FOR ALL USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE POLICY "profit_log_anon" ON profit_log FOR ALL USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE POLICY "ai_swarm_state_anon" ON ai_swarm_state FOR ALL USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE POLICY "debug_memory_anon" ON debug_memory FOR ALL USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE POLICY "addy_companies_anon" ON addy_companies FOR ALL USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE POLICY "addy_app_state_anon" ON addy_app_state FOR ALL USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE POLICY "addy_review_cycles_anon" ON addy_review_cycles FOR ALL USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE POLICY "addy_lessons_anon" ON addy_lessons FOR ALL USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE POLICY "addy_cron_runs_anon" ON addy_cron_runs FOR ALL USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE POLICY "addy_brand_agent_memory_anon" ON addy_brand_agent_memory FOR ALL USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE POLICY "addy_creative_analysis_anon" ON addy_creative_analysis FOR ALL USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE POLICY "addy_social_posts_anon" ON addy_social_posts FOR ALL USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE POLICY "addy_chat_budget_events_anon" ON addy_chat_budget_events FOR ALL USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE POLICY "addy_memory_entries_anon" ON addy_memory_entries FOR ALL USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE POLICY "addy_profit_predictions_anon" ON addy_profit_predictions FOR ALL USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE POLICY "addy_competitive_intel_anon" ON addy_competitive_intel FOR ALL USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE POLICY "addy_ab_tests_anon" ON addy_ab_tests FOR ALL USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE POLICY "addy_super_learning_anon" ON addy_super_learning FOR ALL USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE POLICY "addy_daily_audit_anon" ON addy_daily_audit FOR ALL USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE POLICY "addy_cron_locks_anon" ON addy_cron_locks FOR ALL USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;

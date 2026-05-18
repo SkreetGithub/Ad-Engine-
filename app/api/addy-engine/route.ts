@@ -40,7 +40,7 @@ export async function GET(request: Request) {
         persistence,
         hint:
           persistence === "file"
-            ? "On Vercel, set SUPABASE_URL and SUPABASE_ANON_KEY, then run supabase/addy-schema.sql."
+            ? "On Vercel, set SUPABASE_URL and SUPABASE_ANON_KEY, then run supabase/schema.sql."
             : "Check Supabase tables and RLS policies allow anon read/write.",
       },
       { status: 500 }

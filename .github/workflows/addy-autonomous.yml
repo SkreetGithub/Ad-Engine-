@@ -23,11 +23,12 @@ jobs:
             exit 1
           fi
           BASE_URL="${APP_URL:-https://ad-engine-khaki.vercel.app}"
-          echo "Calling $BASE_URL/api/cron/optimize-ads"
+          echo "Calling $BASE_URL/api/cron/addy-cycle (Meta sync + feedback + optimize)"
           HTTP_CODE=$(curl -sS -o /tmp/addy-cron.json -w "%{http_code}" \
-            -X GET "$BASE_URL/api/cron/optimize-ads" \
+            -X GET "$BASE_URL/api/cron/addy-cycle" \
             -H "Authorization: Bearer $CRON_SECRET" \
-            -H "X-GitHub-Runner: true")
+            -H "X-GitHub-Runner: true" \
+            -H "x-cron-source: github_actions")
           cat /tmp/addy-cron.json
           if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
             echo "Optimization failed with HTTP $HTTP_CODE"
@@ -35,20 +36,3 @@ jobs:
           fi
           echo "Optimization succeeded"
 
-  sync-meta:
-    name: Sync Facebook metrics
-    runs-on: ubuntu-latest
-    needs: optimize
-    if: success()
-
-    steps:
-      - name: Sync Meta ad performance
-        env:
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          APP_URL: ${{ vars.VERCEL_APP_URL }}
-        run: |
-          BASE_URL="${APP_URL:-https://ad-engine-khaki.vercel.app}"
-          curl -sS -f \
-            -X GET "$BASE_URL/api/cron/sync-facebook-metrics" \
-            -H "Authorization: Bearer $CRON_SECRET" \
-            -H "X-GitHub-Runner: true"

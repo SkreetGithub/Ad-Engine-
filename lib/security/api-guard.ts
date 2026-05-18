@@ -59,6 +59,8 @@ export function verifyCronAuth(request: Request): boolean {
 }
 
 export function getCronSource(request: Request): string {
+  const explicit = request.headers.get("x-cron-source")
+  if (explicit) return explicit
   if (request.headers.get("x-github-runner") === "true") return "github_actions"
   if (request.headers.get("user-agent")?.includes("Supabase")) return "pg_cron"
   if (request.headers.get("x-vercel-cron")) return "vercel_cron"

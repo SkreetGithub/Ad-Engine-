@@ -242,7 +242,12 @@ export async function POST(request: Request) {
     }
 
     const intel = await buildIntelligenceContext(company, message, running)
-    const intelligenceContext = [intel.memoryBlock, intel.predictionBlock, intel.competitiveBlock]
+    const intelligenceContext = [
+      intel.auditBlock,
+      intel.memoryBlock,
+      intel.predictionBlock,
+      intel.competitiveBlock,
+    ]
       .filter(Boolean)
       .join("\n\n")
 

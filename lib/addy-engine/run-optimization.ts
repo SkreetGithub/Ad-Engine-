@@ -16,6 +16,12 @@ import { acquireCronLock, releaseCronLock } from "@/lib/addy-persistence/cron-lo
 import { hasSupabase } from "@/lib/supabase"
 import { fetchCompetitiveIntel } from "@/lib/addy-intelligence/competitive"
 import { evaluateRunningAbTests } from "@/lib/addy-intelligence/ab-tests"
+import { persistDailyAudit } from "@/lib/addy-intelligence/daily-audit"
+import {
+  gatherCompanyFeedback,
+  persistFeedbackSnapshot,
+} from "@/lib/addy-intelligence/feedback-gather"
+import { boostMemoryImpact } from "@/lib/addy-intelligence/memory"
 
 export interface OptimizationResult {
   ok: boolean
@@ -62,6 +68,9 @@ export async function runAddyOptimization(opts: {
           meta = await syncMetaForCompany(company.id, running)
         }
 
+        const feedback = await gatherCompanyFeedback(company)
+        await persistFeedbackSnapshot(company, feedback)
+
         const { items, debugLog } = runDailyReview(company, running, library)
         await addQueueItems(items)
 
@@ -78,6 +87,7 @@ export async function runAddyOptimization(opts: {
           library,
           meta,
           queueSummary,
+          feedbackNarrative: feedback.narrative,
         })
 
         const cycle: ReviewCycleRecord = {
@@ -98,6 +108,10 @@ export async function runAddyOptimization(opts: {
           debugLog,
         }
         await appendLearningHistory(cycle)
+        await persistDailyAudit(company, cycle)
+        for (const lesson of cycle.lessonsLearned.slice(0, 3)) {
+          await boostMemoryImpact(company.id, lesson, cycle.profit)
+        }
         await fetchCompetitiveIntel(company)
         await evaluateRunningAbTests(company.id)
 

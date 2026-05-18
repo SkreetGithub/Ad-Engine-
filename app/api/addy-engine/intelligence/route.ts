@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getCompany } from "@/lib/companies-store"
 import { ensureEngineSeeded } from "@/lib/addy-engine/store"
 import { evaluateRunningAbTests } from "@/lib/addy-intelligence/ab-tests"
+import { loadLatestDailyAudit, loadDailyAuditHistory } from "@/lib/addy-intelligence/daily-audit"
 import { getSupabase, hasSupabase } from "@/lib/supabase"
 import { assertValidCompanyId, checkRateLimit, verifyAddyApiSecret } from "@/lib/security/api-guard"
 
@@ -48,7 +49,10 @@ export async function GET(request: Request) {
 
   const sb = getSupabase()
 
-  const [memories, predictions, boosts, intel, abDone] = await Promise.all([
+  const dailyAudit = await loadLatestDailyAudit(companyId)
+  const auditHistory = await loadDailyAuditHistory(companyId, 7)
+
+  const [memories, predictions, boosts, intel, abDone, superLearn] = await Promise.all([
     sb.from("addy_memory_entries").select("id", { count: "exact", head: true }).eq("company_id", companyId),
     sb
       .from("addy_profit_predictions")
@@ -70,6 +74,10 @@ export async function GET(request: Request) {
       .select("id", { count: "exact", head: true })
       .eq("company_id", companyId)
       .eq("status", "completed"),
+    sb
+      .from("addy_super_learning")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId),
   ])
 
   const preds = predictions.data ?? []
@@ -90,6 +98,9 @@ export async function GET(request: Request) {
     autoBoostPosts: boosts.count ?? 0,
     abTestsCompleted: abDone.count ?? 0,
     competitorAlerts: intel.count ?? 0,
+    superLearningSessions: superLearn.count ?? 0,
+    dailyAudit,
+    auditHistory,
     abMessages,
   })
 }
